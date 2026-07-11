@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import type { UserProfile } from "./types.js";
+import type { ContingencyBasket, ExposureProfile, RiskOffsetCandidate, StoredExposure, UserProfile } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 const dataDir = resolve(process.env.DATA_DIR ?? "./data");
@@ -62,6 +62,44 @@ export async function remember(userId: string, text: string): Promise<UserProfil
   await mkdir(join(path, ".."), { recursive: true });
   await writeFile(path, `${JSON.stringify(profile, null, 2)}\n`, "utf8");
   return profile;
+}
+
+async function saveProfile(profile: UserProfile): Promise<void> {
+  const path = profilePath(profile.userId);
+  await mkdir(join(path, ".."), { recursive: true });
+  await writeFile(path, `${JSON.stringify(profile, null, 2)}\n`, "utf8");
+}
+
+export async function saveExposure(profile: ExposureProfile): Promise<void> {
+  const userProfile = await loadProfile(profile.userId);
+  const exposures = userProfile.exposures ?? [];
+  const existing = exposures.find((item) => item.profile.id === profile.id);
+  if (existing) existing.profile = profile;
+  else exposures.push({ profile, baskets: [] });
+  userProfile.exposures = exposures;
+  await saveProfile(userProfile);
+}
+
+export async function loadExposure(userId: string, exposureId: string): Promise<StoredExposure | null> {
+  const profile = await loadProfile(userId);
+  return profile.exposures?.find((item) => item.profile.id === exposureId) ?? null;
+}
+
+export async function saveRiskOffsets(userId: string, exposureId: string, candidates: RiskOffsetCandidate[]): Promise<void> {
+  const profile = await loadProfile(userId);
+  const stored = profile.exposures?.find((item) => item.profile.id === exposureId);
+  if (!stored) throw new Error("Exposure not found. Analyze and save an exposure first.");
+  stored.candidates = candidates;
+  stored.searchedAt = new Date().toISOString();
+  await saveProfile(profile);
+}
+
+export async function saveBasket(userId: string, exposureId: string, basket: ContingencyBasket): Promise<void> {
+  const profile = await loadProfile(userId);
+  const stored = profile.exposures?.find((item) => item.profile.id === exposureId);
+  if (!stored) throw new Error("Exposure not found. Analyze and save an exposure first.");
+  stored.baskets = [...(stored.baskets ?? []), basket];
+  await saveProfile(profile);
 }
 
 export async function rememberWithMempalace(userId: string, text: string) {
