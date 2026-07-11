@@ -10,7 +10,7 @@ const text = (value: unknown) => ({ content: [{ type: "text" as const, text: JSO
 const platformsSchema = z.array(z.enum(["kalshi", "polymarket"])).default(["kalshi", "polymarket"]);
 
 export function createServer() {
-  const server = new McpServer({ name: "prediction-hedging", version: "0.1.0" });
+  const server = new McpServer({ name: "riskoff", version: "0.1.0" });
 
   server.registerTool("search_prediction_markets", {
     title: "Semantic prediction-market search",

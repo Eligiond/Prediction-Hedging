@@ -59,7 +59,7 @@ if [[ -f .env ]]; then
   set +a
 fi
 
-echo "Setting up Prediction Hedging MCP..."
+echo "Setting up Riskoff MCP..."
 npm install --no-audit --no-fund
 
 if [[ ! -x .venv/bin/python ]]; then
@@ -67,7 +67,7 @@ if [[ ! -x .venv/bin/python ]]; then
 fi
 
 MEMPALACE_VERSION="3.5.0"
-MEMPALACE_MARKER=".venv/.prediction-hedging-mempalace-version"
+MEMPALACE_MARKER=".venv/.riskoff-mempalace-version"
 if [[ ! -f "$MEMPALACE_MARKER" ]] || [[ "$(<"$MEMPALACE_MARKER")" != "$MEMPALACE_VERSION" ]]; then
   .venv/bin/python -m pip install --disable-pip-version-check -e vendor/mempalace
   echo "$MEMPALACE_VERSION" > "$MEMPALACE_MARKER"
@@ -93,8 +93,8 @@ fi
 mkdir -p "$MEMPALACE_PATH" "$DATA_DIR"
 
 if [[ "${CLAUDE_CONNECTOR:-0}" == "1" ]]; then
-  SERVER_LOG=".local/prediction-hedging-server.log"
-  TUNNEL_LOG=".local/prediction-hedging-tunnel.log"
+  SERVER_LOG=".local/riskoff-server.log"
+  TUNNEL_LOG=".local/riskoff-tunnel.log"
   : > "$SERVER_LOG"
   : > "$TUNNEL_LOG"
 
@@ -159,7 +159,7 @@ if [[ "${CLAUDE_CONNECTOR:-0}" == "1" ]]; then
 fi
 
 echo
-echo "Prediction Hedging MCP is starting locally."
+echo "Riskoff MCP is starting locally."
 echo "MCP endpoint: http://$HOST:$PORT/mcp"
 echo "Status page:  http://$HOST:$PORT/"
 echo "Press Control-C to stop it."

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo 'No install required for static site'",
+  "buildCommand": "echo 'Riskoff static site ready'",
+  "outputDirectory": "site",
+  "cleanUrls": true
+}
