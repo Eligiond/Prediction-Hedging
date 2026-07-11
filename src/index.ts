@@ -39,7 +39,10 @@ body{margin:0;min-height:100vh;display:grid;place-items:center;background:#10110
 <p><strong>Paper mode only.</strong> No real-money orders can be placed.</p><small>Keep this terminal open. Press Control-C there to stop the server.</small></main></html>`));
   app.post("/mcp", async (request, response) => {
     const server = createServer();
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
     response.on("close", () => { void transport.close(); void server.close(); });
     await server.connect(transport);
     await transport.handleRequest(request, response, request.body);

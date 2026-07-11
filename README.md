@@ -27,6 +27,22 @@ npm run local
 
 Keep the launcher terminal open while using the MCP. Press Control-C to stop it.
 
+### Connect to Claude
+
+Claude's custom connector form cannot use `http://127.0.0.1` because connector
+requests originate from Anthropic's cloud and require a public HTTPS endpoint.
+On macOS, double-click **`Connect Claude.command`** instead. It starts the local
+MCP plus a temporary Cloudflare Quick Tunnel, copies the generated HTTPS MCP URL
+to your clipboard, and opens Claude's connector settings. Paste that URL into
+**Settings > Connectors > Add custom connector** and leave both OAuth fields
+blank.
+
+The generated `trycloudflare.com` address is temporary and changes when the
+launcher restarts. This is suitable for local development and paper trading,
+not a production deployment. Anyone who obtains the temporary URL can reach the
+connector while the launcher is running, so do not put sensitive memories into
+this development tunnel.
+
 ## Architecture
 
 ```text
