@@ -1,7 +1,11 @@
 import express from "express";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createServer } from "./server.js";
+import { getDashboard } from "./dashboard.js";
+import { getAlerts, runProactiveScans, scanAndStoreAlerts } from "./intelligence.js";
 
 async function startStdio() {
   const server = createServer();
@@ -16,27 +20,31 @@ async function startHttp() {
 
   app.use((request, response, next) => {
     const origin = request.headers.origin;
-    if (origin && origins.has(origin)) {
+    const sameOrigin = origin === `http://${request.headers.host}` || origin === `https://${request.headers.host}`;
+    if (origin && (sameOrigin || origins.has(origin))) {
       response.setHeader("Access-Control-Allow-Origin", origin);
       response.setHeader("Vary", "Origin");
       response.setHeader("Access-Control-Expose-Headers", "mcp-session-id");
     }
     response.setHeader("Access-Control-Allow-Headers", "content-type, authorization, mcp-session-id, last-event-id");
     response.setHeader("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS");
-    if (request.method === "OPTIONS") return response.sendStatus(origin && !origins.has(origin) ? 403 : 204);
-    if (origin && !origins.has(origin)) return response.status(403).json({ error: "Origin not allowed" });
+    if (request.method === "OPTIONS") return response.sendStatus(origin && !sameOrigin && !origins.has(origin) ? 403 : 204);
+    if (origin && !sameOrigin && !origins.has(origin)) return response.status(403).json({ error: "Origin not allowed" });
     if (token && request.headers.authorization !== `Bearer ${token}`) return response.status(401).json({ error: "Unauthorized" });
     next();
   });
 
   app.get("/health", (_request, response) => response.json({ ok: true, service: "riskoff-mcp", mode: "paper-only" }));
-  app.get("/", (_request, response) => response.type("html").send(`<!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Riskoff MCP</title><style>
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:#10110f;color:#f4f0e6;font:16px system-ui,sans-serif}main{max-width:680px;padding:48px}b{color:#a9e66e}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#72d572;margin-right:9px}code{background:#24251f;padding:4px 7px;border-radius:5px}p{line-height:1.6;color:#c9c6bc}small{color:#8e8c84}</style>
-<main><div><span class="dot"></span><b>RUNNING LOCALLY</b></div><h1>Riskoff MCP</h1>
-<p>Kalshi + Polymarket semantic search, personalized MemPalace context, and paper trading are available at <code>/mcp</code>.</p>
-<p><strong>Paper mode only.</strong> No real-money orders can be placed.</p><small>Keep this terminal open. Press Control-C there to stop the server.</small></main></html>`));
+  app.get("/api/dashboard", async (request, response) => {
+    try { response.json(await getDashboard(String(request.query.user_id ?? "local-user"))); }
+    catch (error) { response.status(500).json({ error: error instanceof Error ? error.message : String(error) }); }
+  });
+  app.get("/api/alerts", async (request, response) => response.json({ alerts: await getAlerts(String(request.query.user_id ?? "local-user")) }));
+  app.post("/api/alerts/scan", async (request, response) => {
+    try { response.json(await scanAndStoreAlerts(String(request.body.user_id ?? "local-user"), String(request.body.query ?? ""))); }
+    catch (error) { response.status(500).json({ error: error instanceof Error ? error.message : String(error) }); }
+  });
+  app.get("/api/config", (_request, response) => response.json({ mcpEndpoint: `http://127.0.0.1:${process.env.PORT ?? 3000}/mcp`, mode: "paper-only", proactiveIntervalMinutes: Number(process.env.MONITOR_INTERVAL_MINUTES ?? 15) }));
   app.post("/mcp", async (request, response) => {
     const server = createServer();
     const transport = new StreamableHTTPServerTransport({
@@ -52,8 +60,17 @@ body{margin:0;min-height:100vh;display:grid;place-items:center;background:#10110
 
   const port = Number(process.env.PORT ?? 3000);
   const host = process.env.HOST ?? "127.0.0.1";
-  app.listen(port, host, () => console.error(`Riskoff MCP listening at http://${host}:${port}/mcp`));
+  const uiDir = resolve(process.env.RISKOFF_UI_DIR ?? "ui");
+  if (existsSync(uiDir)) app.use(express.static(uiDir));
+  const monitorMinutes = Math.max(5, Number(process.env.MONITOR_INTERVAL_MINUTES ?? 15));
+  const monitor = setInterval(() => { void runProactiveScans(); }, monitorMinutes * 60_000);
+  monitor.unref();
+  void runProactiveScans();
+  app.listen(port, host, () => console.error(`Riskoff MCP and dashboard listening at http://${host}:${port}`));
 }
 
-if (process.env.MCP_TRANSPORT === "http") await startHttp();
-else await startStdio();
+const start = process.env.MCP_TRANSPORT === "http" ? startHttp : startStdio;
+void start().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

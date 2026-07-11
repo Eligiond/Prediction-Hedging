@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Riskoff</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span class="mark">R</span><span>Riskoff</span></div>
+    <nav aria-label="Main navigation">
+      <button class="nav-item active" data-view="portfolio">Portfolio</button>
+      <button class="nav-item" data-view="intelligence">Intelligence</button>
+      <button class="nav-item" data-view="connections">Connections</button>
+    </nav>
+    <div class="server-state"><span class="status-dot"></span><div><strong>MCP running</strong><small>Paper mode only</small></div></div>
+  </aside>
+
+  <main>
+    <header class="toolbar">
+      <div><h1 id="page-title">Portfolio</h1><p id="page-subtitle">Marked to current Kalshi and Polymarket prices</p></div>
+      <div class="toolbar-actions"><label class="user-field">Profile<input id="user-id" value="local-user" aria-label="Local profile ID"></label><button id="refresh" class="secondary">Refresh</button></div>
+    </header>
+
+    <section id="portfolio" class="view active-view">
+      <div id="loading" class="loading-grid" aria-live="polite"><span></span><span></span><span></span></div>
+      <div id="portfolio-content" hidden>
+        <section class="summary-grid">
+          <article class="equity-block"><span class="label">Paper equity</span><strong id="equity">$0.00</strong><span id="total-return" class="change">$0.00</span></article>
+          <article><span class="label">Available cash</span><strong id="cash">$0.00</strong></article>
+          <article><span class="label">Open positions</span><strong id="position-count">0</strong></article>
+          <article><span class="label">Simulated trades</span><strong id="trade-count">0</strong></article>
+        </section>
+
+        <section class="chart-section">
+          <div class="section-heading"><div><h2>Performance</h2><p>Marked-to-market paper equity</p></div><span id="period-return">0.00%</span></div>
+          <canvas id="performance-chart" height="220" aria-label="Paper portfolio performance chart"></canvas>
+        </section>
+
+        <section class="data-section">
+          <div class="section-heading"><div><h2>Positions</h2><p>Current value and unrealized result</p></div></div>
+          <div id="positions" class="rows"></div>
+        </section>
+        <section class="data-section">
+          <div class="section-heading"><div><h2>Trade history</h2><p>Every simulated fill, newest first</p></div></div>
+          <div id="trades" class="rows"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="intelligence" class="view">
+      <div class="intelligence-header"><h2>Political risk monitor</h2><p>Riskoff searches current web reporting and explains which changes overlap with your exposure. It never trades on an alert.</p></div>
+      <form id="scan-form"><label>Exposure to monitor<textarea id="scan-query" rows="3" placeholder="Example: Indonesian fishing income exposed to Chinese maritime activity"></textarea></label><button type="submit">Search current news</button></form>
+      <div id="scan-status" role="status"></div>
+      <div id="alerts" class="alert-grid"></div>
+    </section>
+
+    <section id="connections" class="view">
+      <div class="connection-panel"><h2>Connect your AI</h2><p>Keep Riskoff open. The dashboard and MCP server run together on this Mac.</p><label>MCP endpoint<div class="copy-field"><input id="mcp-endpoint" readonly value="http://127.0.0.1:3000/mcp"><button id="copy-endpoint" type="button">Copy</button></div></label><div class="instructions"><strong>Local setup</strong><ol><li>Open Riskoff from Applications.</li><li>Copy the endpoint above.</li><li>Add it as an HTTP MCP server in your AI client.</li><li>Leave Riskoff running while you use its tools.</li></ol></div><p class="privacy">Profiles, paper trades, performance snapshots, and alerts stay in Riskoff's local application data folder.</p></div>
+    </section>
+  </main>
+
+  <dialog id="detail-dialog"><button id="close-dialog" aria-label="Close">Close</button><div id="detail-content"></div></dialog>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

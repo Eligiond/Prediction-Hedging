@@ -1,0 +1,38 @@
+appId: com.riskoff.desktop
+productName: Riskoff
+asar: true
+files:
+  - desktop/main.cjs
+  - package.json
+extraResources:
+  - from: dist/desktop-server.cjs
+    to: server/desktop-server.cjs
+  - from: ui
+    to: ui
+  - from: python
+    to: python
+  - from: vendor/mempalace
+    to: vendor/mempalace
+    filter:
+      - mempalace/**/*
+      - pyproject.toml
+      - LICENSE
+      - README.md
+mac:
+  category: public.app-category.finance
+  darkModeSupport: true
+  minimumSystemVersion: "12.0"
+  target:
+    - target: dmg
+      arch:
+        - arm64
+dmg:
+  title: Riskoff
+  contents:
+    - x: 150
+      y: 180
+      type: file
+    - x: 430
+      y: 180
+      type: link
+      path: /Applications

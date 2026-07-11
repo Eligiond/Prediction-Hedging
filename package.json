@@ -1,8 +1,11 @@
 {
   "name": "riskoff-mcp",
-  "version": "0.1.0",
+  "productName": "Riskoff",
+  "author": "Raeed Zainuddin",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
+  "main": "desktop/main.cjs",
   "description": "Riskoff MCP server for personalized prediction-market discovery, hedging, and paper trading.",
   "engines": {
     "node": ">=20"
@@ -11,20 +14,27 @@
     "dev": "tsx src/index.ts",
     "dev:http": "MCP_TRANSPORT=http tsx src/index.ts",
     "local": "bash scripts/start-local.sh",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
-    "start:http": "MCP_TRANSPORT=http node dist/index.js",
+    "build": "tsc -p tsconfig.json && npm run build:desktop-server",
+    "build:desktop-server": "esbuild src/index.ts --bundle --platform=node --format=cjs --outfile=dist/desktop-server.cjs",
+    "desktop": "npm run build && electron .",
+    "dmg": "npm run build && electron-builder --mac dmg --arm64",
+    "start": "node dist/src/index.js",
+    "start:http": "MCP_TRANSPORT=http node dist/src/index.js",
     "test": "node --import tsx --test test/**/*.test.ts",
     "check": "npm run build && npm test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "express": "^5.1.0",
+    "fast-xml-parser": "^5.10.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
     "@types/node": "^24.0.0",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.1",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
   }
