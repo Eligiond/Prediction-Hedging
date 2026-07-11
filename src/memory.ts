@@ -1,14 +1,12 @@
 import { execFile } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import type { ContingencyBasket, ExposureProfile, RiskOffsetCandidate, StoredExposure, UserProfile } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 const dataDir = resolve(process.env.DATA_DIR ?? "./data");
-const moduleDir = dirname(fileURLToPath(import.meta.url));
 
 function safeUserId(userId: string): string {
   const safe = userId.trim().replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80);
@@ -22,10 +20,7 @@ function profilePath(userId: string) {
 
 function bridgePath(): string {
   if (process.env.PROJECT_ROOT) return join(process.env.PROJECT_ROOT, "python", "mempalace_bridge.py");
-  const relative = moduleDir.endsWith(join("dist", "src"))
-    ? "../../python/mempalace_bridge.py"
-    : "../python/mempalace_bridge.py";
-  return resolve(moduleDir, relative);
+  return resolve(process.cwd(), "python", "mempalace_bridge.py");
 }
 
 function pythonExecutable(): string {

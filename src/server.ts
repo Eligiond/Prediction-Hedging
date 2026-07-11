@@ -4,6 +4,8 @@ import { loadExposure, recall, rememberWithMempalace, saveBasket, saveExposure, 
 import { getLedger, paperTrade } from "./paper.js";
 import { findMarket, searchMarkets } from "./providers.js";
 import { rankMarkets } from "./search.js";
+import { getDashboard } from "./dashboard.js";
+import { scanAndStoreAlerts } from "./intelligence.js";
 import { analyzeExposure, buildContingencyBasket, rankRiskOffsets } from "./hedging.js";
 import type { Platform } from "./types.js";
 
@@ -163,6 +165,18 @@ export function createServer() {
     description: "Returns paper cash, positions, and recent simulated trades. It never accesses a real brokerage or exchange account.",
     inputSchema: { user_id: z.string().min(1) },
   }, async ({ user_id }) => text({ ledger: await getLedger(user_id), mode: "paper-only" }));
+
+  server.registerTool("get_trade_performance", {
+    title: "Get marked paper-trade performance",
+    description: "Marks open paper positions to current exchange prices and returns equity, profit/loss, position performance, and saved history.",
+    inputSchema: { user_id: z.string().min(1) },
+  }, async ({ user_id }) => text(await getDashboard(user_id)));
+
+  server.registerTool("scan_political_risk", {
+    title: "Scan web news for political risk changes",
+    description: "Searches current web news for a user exposure, stores source-linked alerts, and explains why each signal may matter. It never trades automatically.",
+    inputSchema: { user_id: z.string().min(1), query: z.string().min(3).max(500) },
+  }, async ({ user_id, query }) => text(await scanAndStoreAlerts(user_id, query)));
 
   server.registerTool("execute_paper_trade", {
     title: "Execute paper trade",
