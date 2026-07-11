@@ -1,9 +1,9 @@
 {
-  "name": "prediction-hedging-mcp",
+  "name": "riskoff-mcp",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "MCP server for personalized prediction-market discovery, hedging, and paper trading.",
+  "description": "Riskoff MCP server for personalized prediction-market discovery, hedging, and paper trading.",
   "engines": {
     "node": ">=20"
   },

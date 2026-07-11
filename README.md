@@ -1,6 +1,6 @@
-# Prediction Hedging MCP
+# Riskoff MCP
 
-Prediction Hedging is now an MCP-first, paper-trading assistant rather than a swipe app. Any MCP-capable product can use it to:
+Riskoff is an MCP-first, paper-trading assistant. Any MCP-capable product can use it to:
 
 - semantically search active Kalshi and Polymarket markets through one normalized interface;
 - recall relevant user context from MemPalace (with a local profile fallback);
@@ -12,7 +12,7 @@ No code path places real-money orders. This is a research and hackathon prototyp
 
 ## One-click local launch
 
-On macOS, double-click **`Start Prediction Hedging.command`** in Finder. The
+On macOS, double-click **`Start Riskoff.command`** in Finder. The
 launcher installs the Node dependencies, creates an isolated `.venv`, installs
 the bundled MemPalace source, builds the MCP, starts it at
 `http://127.0.0.1:3000/mcp`, and opens a local status page. The first launch is
@@ -31,7 +31,7 @@ Keep the launcher terminal open while using the MCP. Press Control-C to stop it.
 
 Claude's custom connector form cannot use `http://127.0.0.1` because connector
 requests originate from Anthropic's cloud and require a public HTTPS endpoint.
-On macOS, double-click **`Connect Claude.command`** instead. It starts the local
+On macOS, double-click **`Connect Riskoff to Claude.command`** instead. It starts the local
 MCP plus a temporary Cloudflare Quick Tunnel, copies the generated HTTPS MCP URL
 to your clipboard, and opens Claude's connector settings. Paste that URL into
 **Settings > Connectors > Add custom connector** and leave both OAuth fields
@@ -50,7 +50,7 @@ MCP client / website backend
           |
    stdio or Streamable HTTP
           |
-  Prediction Hedging MCP
+  Riskoff MCP
    |        |         |
 Kalshi  Polymarket  User context
  REST    Gamma API  Vendored MemPalace + local profile
@@ -82,11 +82,11 @@ Build first, then configure an MCP host to run:
 ```json
 {
   "mcpServers": {
-    "prediction-hedging": {
+    "riskoff": {
       "command": "node",
-      "args": ["/absolute/path/to/Prediction-Hedging/dist/src/index.js"],
+      "args": ["/absolute/path/to/Riskoff/dist/src/index.js"],
       "env": {
-        "DATA_DIR": "/absolute/path/to/Prediction-Hedging/data"
+        "DATA_DIR": "/absolute/path/to/Riskoff/data"
       }
     }
   }

@@ -31,7 +31,7 @@ async function getJson(url: URL): Promise<unknown> {
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: { "user-agent": "prediction-hedging-mcp/0.1" },
+      headers: { "user-agent": "riskoff-mcp/0.1" },
     });
     if (!response.ok) throw new Error(`${url.host} returned HTTP ${response.status}`);
     return await response.json();

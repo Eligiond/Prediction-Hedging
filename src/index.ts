@@ -29,12 +29,12 @@ async function startHttp() {
     next();
   });
 
-  app.get("/health", (_request, response) => response.json({ ok: true, service: "prediction-hedging-mcp", mode: "paper-only" }));
+  app.get("/health", (_request, response) => response.json({ ok: true, service: "riskoff-mcp", mode: "paper-only" }));
   app.get("/", (_request, response) => response.type("html").send(`<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Prediction Hedging MCP</title><style>
+<title>Riskoff MCP</title><style>
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:#10110f;color:#f4f0e6;font:16px system-ui,sans-serif}main{max-width:680px;padding:48px}b{color:#a9e66e}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#72d572;margin-right:9px}code{background:#24251f;padding:4px 7px;border-radius:5px}p{line-height:1.6;color:#c9c6bc}small{color:#8e8c84}</style>
-<main><div><span class="dot"></span><b>RUNNING LOCALLY</b></div><h1>Prediction Hedging MCP</h1>
+<main><div><span class="dot"></span><b>RUNNING LOCALLY</b></div><h1>Riskoff MCP</h1>
 <p>Kalshi + Polymarket semantic search, personalized MemPalace context, and paper trading are available at <code>/mcp</code>.</p>
 <p><strong>Paper mode only.</strong> No real-money orders can be placed.</p><small>Keep this terminal open. Press Control-C there to stop the server.</small></main></html>`));
   app.post("/mcp", async (request, response) => {
@@ -52,7 +52,7 @@ body{margin:0;min-height:100vh;display:grid;place-items:center;background:#10110
 
   const port = Number(process.env.PORT ?? 3000);
   const host = process.env.HOST ?? "127.0.0.1";
-  app.listen(port, host, () => console.error(`Prediction Hedging MCP listening at http://${host}:${port}/mcp`));
+  app.listen(port, host, () => console.error(`Riskoff MCP listening at http://${host}:${port}/mcp`));
 }
 
 if (process.env.MCP_TRANSPORT === "http") await startHttp();
