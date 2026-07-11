@@ -1,12 +1,28 @@
 # Riskoff MCP
 
-Riskoff is an MCP-first, paper-trading assistant. Any MCP-capable product can use it to:
+Riskoff is a read-only MCP server that turns a business or financial exposure into an explainable contingency basket of live prediction-market contracts. It helps an AI client assess whether a contract may pay in a scenario where the user loses money; it does not execute trades or promise insurance.
+
+Any MCP-capable product can use it to:
 
 - semantically search active Kalshi and Polymarket markets through one normalized interface;
 - recall relevant user context from MemPalace (with a local profile fallback);
 - surface explainable hedge candidates for an exposure such as “I invest in nuclear—how can I hedge?”;
 - remember explicit preferences and corrections; and
 - simulate YES/NO trades in a local paper portfolio.
+
+## Risk-offset workflow
+
+```mermaid
+flowchart LR
+  A[Exposure in natural language] --> B[Loss scenarios and causal drivers]
+  B --> C[Kalshi and Polymarket retrieval]
+  C --> D[Payoff-direction validation]
+  D --> E[Scoring: timing, liquidity, rules, basis risk]
+  E --> F[Diversified contingency basket]
+  F --> G[Residual-risk report and saved memory]
+```
+
+The core rule is: **a related market is not automatically a hedge.** Counterweight only accepts a candidate when its YES or NO side can be defended as paying in a defined loss scenario. Everything else is rejected or labelled as a high-basis-risk proxy.
 
 No code path places real-money orders. This is a research and hackathon prototype, not financial advice.
 
@@ -31,11 +47,12 @@ cannot call a Mac's loopback address.
 ## Developer launch
 
 On macOS, double-click **`Start Riskoff.command`** in Finder. The
-launcher installs the Node dependencies, creates an isolated `.venv`, installs
-the bundled MemPalace source, builds the MCP, starts it at
+launcher installs the Node dependencies, creates an isolated `.venv`, attempts
+to install the bundled MemPalace source, builds the MCP, starts it at
 `http://127.0.0.1:3000/mcp`, and opens a local status page. The first launch is
-slower because MemPalace and its vector-database dependencies are installed;
-later launches reuse the environment.
+slower because MemPalace and its vector-database dependencies may be installed;
+later launches reuse the environment. If that optional installation fails, the
+server starts with its local profile-memory fallback.
 
 From a terminal on macOS or Linux, the same path is:
 
@@ -128,6 +145,10 @@ The MCP endpoint is `POST http://127.0.0.1:3000/mcp`; health is at `/health`. Se
 
 ## Tools
 
+- `analyze_exposure` — saves a structured exposure, loss scenarios, risk channels, budget, and target coverage.
+- `find_risk_offsets` — retrieves live markets through the existing connectors and returns accepted and rejected candidates with payoff-direction checks.
+- `build_contingency_basket` — selects nonredundant accepted candidates while respecting budget and basis-risk limits.
+- `explain_residual_risk` — reports uncovered scenarios, timing, liquidity, settlement, and proxy-risk limitations.
 - `search_prediction_markets` — unified natural-language market search.
 - `recall_user_context` — relevant MemPalace and local profile memories.
 - `remember_user_context` — stores a fact the user explicitly wants remembered.
@@ -161,6 +182,26 @@ should be signed with a valid Developer ID certificate and notarized before
 distribution.
 
 Every tool takes a `user_id` where identity matters. A production deployment must derive this from authenticated server-side identity rather than trusting a browser-supplied value.
+
+## Demo walkthrough
+
+1. Call `analyze_exposure` with `user_id: "demo-importer"` and:
+
+   ```text
+   I operate a small electronics-import business. During the next six months I could lose around $100,000 if tariffs rise, shipping costs spike, or consumer demand falls. My hedge budget is $10,000 and I want to cover about half of the downside.
+   ```
+
+2. Pass the returned `exposure.id` to `find_risk_offsets`.
+3. Point out an accepted candidate's `recommendedSide`, score components, settlement details, and basis-risk explanation. Point out a rejected candidate to show the direction filter.
+4. Call `build_contingency_basket` with the same `exposure_id`, a `$10,000` maximum budget, and five maximum contracts.
+5. Call `explain_residual_risk` to show what is still unprotected.
+6. Ask the MCP client to recall `demo-importer`'s saved exposure in a later request. Structured exposure data is persisted in the existing local profile fallback, and explicit facts continue to be mirrored to MemPalace when available.
+
+## Scoring and limits
+
+Candidates receive a transparent 0-100 score: 25 payoff-direction alignment, 20 causal strength, 15 timing, 10 liquidity, 10 settlement clarity, 10 geography, and 10 protection efficiency, then penalties for basis risk, stale data, and wide spreads. The basket intentionally returns fewer than three contracts when the available markets do not meet these checks.
+
+For a truly direct binary event match only, sizing may use the illustrative estimate `shares = (target coverage * estimated loss) / (1 - contract price)`. It is constrained by budget and is not applied to proxy contracts.
 
 ## Semantic search
 

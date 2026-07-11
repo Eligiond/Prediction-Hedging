@@ -72,6 +72,15 @@ export async function fetchKalshiMarkets(limit = 100): Promise<Market[]> {
       closesAt: market.close_time ? String(market.close_time) : null,
       url: `https://kalshi.com/markets/${encodeURIComponent(ticker)}`,
       tradable: market.status === "active",
+      bestBid: nullablePrice(market.yes_bid_dollars),
+      bestAsk: nullablePrice(market.yes_ask_dollars),
+      spread: (() => {
+        const bid = nullablePrice(market.yes_bid_dollars);
+        const ask = nullablePrice(market.yes_ask_dollars);
+        return bid === null || ask === null ? null : ask - bid;
+      })(),
+      settlementRules: [market.rules_primary, market.rules_secondary].filter(Boolean).join(" "),
+      fetchedAt: new Date().toISOString(),
     };
   });
 }
@@ -169,6 +178,8 @@ export async function findMarket(platform: Platform, marketId: string): Promise<
       closesAt: market.close_time ? String(market.close_time) : null,
       url: `https://kalshi.com/markets/${encodeURIComponent(marketId)}`,
       tradable: market.status === "active",
+      bestBid: nullablePrice(market.yes_bid_dollars), bestAsk: nullablePrice(market.yes_ask_dollars),
+      settlementRules: String(market.rules_primary ?? ""), fetchedAt: new Date().toISOString(),
     };
   }
   const url = new URL(`${POLYMARKET_BASE}/markets`);
@@ -198,5 +209,7 @@ function normalizePolymarket(
     url: `https://polymarket.com/event/${encodeURIComponent(slug)}`,
     tradable: market.active === true && market.closed !== true && market.acceptingOrders !== false,
     tokenIds: parseJsonArray(market.clobTokenIds),
+    bestAsk: nullablePrice(market.bestAsk), settlementRules: String(market.description ?? ""),
+    fetchedAt: new Date().toISOString(),
   };
 }
