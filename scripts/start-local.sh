@@ -33,8 +33,14 @@ fi
 MEMPALACE_VERSION="3.5.0"
 MEMPALACE_MARKER=".venv/.prediction-hedging-mempalace-version"
 if [[ ! -f "$MEMPALACE_MARKER" ]] || [[ "$(<"$MEMPALACE_MARKER")" != "$MEMPALACE_VERSION" ]]; then
-  .venv/bin/python -m pip install --disable-pip-version-check -e vendor/mempalace
-  echo "$MEMPALACE_VERSION" > "$MEMPALACE_MARKER"
+  # The bundled package uses Hatchling. A normal install works with older
+  # macOS Python environments where pip cannot perform a PEP 660 editable install.
+  if .venv/bin/python -m pip install --disable-pip-version-check vendor/mempalace; then
+    echo "$MEMPALACE_VERSION" > "$MEMPALACE_MARKER"
+  else
+    echo "WARNING: MemPalace could not be installed. Continuing with local profile memory only."
+    rm -f "$MEMPALACE_MARKER"
+  fi
 else
   echo "MemPalace $MEMPALACE_VERSION is already installed locally."
 fi

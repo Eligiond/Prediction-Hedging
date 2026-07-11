@@ -1,9 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { recall, rememberWithMempalace } from "./memory.js";
+import { loadExposure, recall, rememberWithMempalace, saveBasket, saveExposure, saveRiskOffsets } from "./memory.js";
 import { getLedger, paperTrade } from "./paper.js";
 import { fetchMarkets, findMarket } from "./providers.js";
 import { rankMarkets } from "./search.js";
+import { analyzeExposure, buildContingencyBasket, rankRiskOffsets } from "./hedging.js";
 import type { Platform } from "./types.js";
 
 const text = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] });
@@ -23,6 +24,87 @@ export function createServer() {
     const fetched = await fetchMarkets(platforms as Platform[], scan_limit);
     const ranked = await rankMarkets(query, fetched.markets, limit);
     return text({ query, rankingMode: ranked.mode, providerErrors: fetched.errors, results: ranked.results });
+  });
+
+  server.registerTool("analyze_exposure", {
+    title: "Analyze financial exposure",
+    description: "Converts an explicit business or financial exposure into saved loss scenarios and causal risk channels. This is read-only risk analysis, not trading advice.",
+    inputSchema: {
+      user_id: z.string().min(1), description: z.string().min(10).max(5000),
+      time_horizon: z.string().min(2).max(200).optional(), estimated_loss: z.number().positive().max(1_000_000_000).optional(),
+      hedge_budget: z.number().positive().max(1_000_000_000).optional(), target_coverage: z.number().min(0.01).max(1).optional(),
+    },
+  }, async ({ user_id, description, time_horizon, estimated_loss, hedge_budget, target_coverage }) => {
+    const exposure = analyzeExposure({
+      userId: user_id, description, timeHorizon: time_horizon, estimatedLoss: estimated_loss,
+      hedgeBudget: hedge_budget, targetCoverage: target_coverage,
+    });
+    await saveExposure(exposure);
+    return text({ exposure, disclaimer: "Analytical and read-only. A loss scenario does not establish that a prediction-market contract is a valid hedge." });
+  });
+
+  server.registerTool("find_risk_offsets", {
+    title: "Find validated event-risk offsets",
+    description: "Searches active Kalshi and Polymarket markets for a saved exposure, then rejects markets with wrong payoff direction, incompatible timing, or weak evidence.",
+    inputSchema: {
+      user_id: z.string().min(1), exposure_id: z.string().min(1), platforms: platformsSchema,
+      maximum_candidates: z.number().int().min(1).max(40).default(20), scan_limit: z.number().int().min(25).max(500).default(200),
+    },
+  }, async ({ user_id, exposure_id, platforms, maximum_candidates, scan_limit }) => {
+    const stored = await loadExposure(user_id, exposure_id);
+    if (!stored) throw new Error("Exposure not found. Call analyze_exposure first.");
+    const fetched = await fetchMarkets(platforms as Platform[], scan_limit);
+    const perScenario = await Promise.all(stored.profile.lossScenarios.map(async (scenario) => {
+      const ranked = await rankMarkets(scenario.searchTerms.join(" "), fetched.markets, 15);
+      return ranked.results;
+    }));
+    const markets = [...new Map(perScenario.flat().map((market) => [`${market.platform}:${market.id}`, market])).values()];
+    const candidates = rankRiskOffsets(stored.profile, markets, maximum_candidates);
+    await saveRiskOffsets(user_id, exposure_id, candidates);
+    const accepted = candidates.filter((candidate) => candidate.classification !== "rejected");
+    const rejected = candidates.filter((candidate) => candidate.classification === "rejected");
+    return text({
+      exposureId: exposure_id, searchedMarketCount: markets.length, providerErrors: fetched.errors,
+      accepted, rejected, disclaimer: "Candidates are partial event-risk offsets only. Verify settlement rules, liquidity, and the relationship to your actual loss before acting.",
+    });
+  });
+
+  server.registerTool("build_contingency_basket", {
+    title: "Build a diversified contingency basket",
+    description: "Builds a nonredundant, budget-aware basket from validated saved candidates. It returns fewer candidates when the evidence is weak.",
+    inputSchema: {
+      user_id: z.string().min(1), exposure_id: z.string().min(1), maximum_budget: z.number().positive().max(1_000_000_000).optional(),
+      target_coverage: z.number().min(0.01).max(1).optional(), maximum_contracts: z.number().int().min(1).max(5).default(5),
+      maximum_basis_risk: z.enum(["low", "medium", "high"]).default("high"),
+    },
+  }, async ({ user_id, exposure_id, maximum_budget, target_coverage, maximum_contracts, maximum_basis_risk }) => {
+    const stored = await loadExposure(user_id, exposure_id);
+    if (!stored) throw new Error("Exposure not found. Call analyze_exposure first.");
+    if (!stored.candidates) throw new Error("No saved market search exists. Call find_risk_offsets first.");
+    const basket = buildContingencyBasket(stored.profile, stored.candidates, {
+      maximumBudget: maximum_budget, targetCoverage: target_coverage, maximumContracts: maximum_contracts, maximumBasisRisk: maximum_basis_risk,
+    });
+    await saveBasket(user_id, exposure_id, basket);
+    return text(basket);
+  });
+
+  server.registerTool("explain_residual_risk", {
+    title: "Explain residual risk",
+    description: "Explains risks that the saved contingency basket does not cover, including basis risk, timing mismatch, liquidity limits, and settlement ambiguity.",
+    inputSchema: { user_id: z.string().min(1), exposure_id: z.string().min(1), basket_id: z.string().min(1).optional() },
+  }, async ({ user_id, exposure_id, basket_id }) => {
+    const stored = await loadExposure(user_id, exposure_id);
+    if (!stored) throw new Error("Exposure not found. Call analyze_exposure first.");
+    const basket = basket_id ? stored.baskets?.find((item) => item.id === basket_id) : stored.baskets?.at(-1);
+    if (!basket) throw new Error("Basket not found. Call build_contingency_basket first.");
+    return text({
+      exposureId: exposure_id, basketId: basket.id, modeledCoverage: basket.modeledCoverage,
+      coveredRiskChannels: [...new Set(basket.recommendations.map((item) => item.riskChannel))],
+      uncoveredRisks: basket.uncoveredRisks,
+      basisRisk: basket.recommendations.map((item) => ({ title: item.market.title, level: item.basisRisk, explanation: item.basisRiskExplanation })),
+      timingAndLiquidityLimits: basket.recommendations.map((item) => ({ title: item.market.title, closesAt: item.market.closesAt, liquidity: item.market.liquidity, dataStatus: item.dataStatus })),
+      assumptions: stored.profile.assumptions, warnings: basket.warnings,
+    });
   });
 
   server.registerTool("recall_user_context", {
