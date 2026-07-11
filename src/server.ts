@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { recall, rememberWithMempalace } from "./memory.js";
 import { getLedger, paperTrade } from "./paper.js";
-import { fetchMarkets, findMarket } from "./providers.js";
+import { findMarket, searchMarkets } from "./providers.js";
 import { rankMarkets } from "./search.js";
 import type { Platform } from "./types.js";
 
@@ -17,10 +17,10 @@ export function createServer() {
     description: "Searches and normalizes active Kalshi and Polymarket markets. Use natural-language exposure, event, or hedge descriptions.",
     inputSchema: {
       query: z.string().min(2), platforms: platformsSchema,
-      limit: z.number().int().min(1).max(25).default(10), scan_limit: z.number().int().min(25).max(500).default(150),
+      limit: z.number().int().min(1).max(25).default(10), scan_limit: z.number().int().min(25).max(3000).default(500),
     },
   }, async ({ query, platforms, limit, scan_limit }) => {
-    const fetched = await fetchMarkets(platforms as Platform[], scan_limit);
+    const fetched = await searchMarkets(query, platforms as Platform[], scan_limit);
     const ranked = await rankMarkets(query, fetched.markets, limit);
     return text({ query, rankingMode: ranked.mode, providerErrors: fetched.errors, results: ranked.results });
   });
@@ -46,17 +46,32 @@ export function createServer() {
     },
   }, async ({ user_id, exposure, platforms, limit }) => {
     const [memory, fetched] = await Promise.all([
-      recall(user_id, exposure, 8), fetchMarkets(platforms as Platform[], 200),
+      recall(user_id, exposure, 8), searchMarkets(exposure, platforms as Platform[], 1000),
     ]);
-    const context = memory.memories.map((item) => item.text).join("; ");
-    const query = `Hedge downside or adverse scenarios for this exposure: ${exposure}. Relevant user context: ${context}`;
-    const ranked = await rankMarkets(query, fetched.markets, limit);
-    const candidates = ranked.results.map((market) => ({
-      ...market,
-      hedgeFraming: `Consider the outcome that gains when the adverse scenario for “${exposure}” occurs. Verify contract resolution terms and correlation before trading.`,
-      maxLossPerShare: "Purchase price (binary contracts can expire worthless)",
-    }));
-    return text({ exposure, relevantContext: memory.memories, mempalaceAvailable: memory.mempalaceAvailable, rankingMode: ranked.mode, providerErrors: fetched.errors, candidates, disclaimer: "Research support only; prediction-market contracts are risky and may not correlate with your exposure." });
+    const ranked = await rankMarkets(exposure, fetched.markets, limit);
+    const candidates = ranked.results.map((market) => {
+      const title = market.title.toLowerCase();
+      const regionalClashProxy = title.includes("china") && title.includes("philippines") && title.includes("clash");
+      return {
+        ...market,
+        hedgeFraming: regionalClashProxy
+          ? "Closest regional proxy: a paper-only YES position pays if the named China–Philippines military clash occurs. It does not pay merely because Chinese fishing pressure or fish-catch losses increase."
+          : `This is only an indirect scenario candidate for “${exposure}”. Determine the payoff direction and verify contract resolution terms before considering even a paper trade.`,
+        basisRisk: regionalClashProxy ? "high" : "very high",
+        suggestedMode: "paper-only",
+        maxLossPerShare: "Purchase price (binary contracts can expire worthless)",
+      };
+    });
+    const status = candidates.length ? "candidate_markets_found" : "no_defensible_market_hedge_found";
+    return text({
+      exposure, status, relevantContext: memory.memories,
+      mempalaceAvailable: memory.mempalaceAvailable, rankingMode: ranked.mode,
+      providerErrors: fetched.errors, candidates,
+      guidance: candidates.length
+        ? "Only use a candidate if its resolution outcome has a defensible payoff relationship to the exposure. Indirect geopolitical contracts can have substantial basis risk."
+        : "No active Kalshi or Polymarket contract passed the relevance gate. Do not substitute an unrelated liquid market; consider insurance, operational diversification, forward sales, or other instruments outside prediction markets.",
+      disclaimer: "Research support only; prediction-market contracts are risky and may not correlate with your exposure.",
+    });
   });
 
   server.registerTool("get_paper_portfolio", {
