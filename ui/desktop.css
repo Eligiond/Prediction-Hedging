@@ -1,0 +1,6 @@
+/* Reserve the macOS titlebar control region in the packaged desktop window. */
+@media (min-width: 801px) {
+  .sidebar {
+    padding-top: 52px;
+  }
+}
