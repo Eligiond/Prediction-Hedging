@@ -25,6 +25,7 @@ export interface Market {
 export interface RankedMarket extends Market {
   relevance: number;
   matchedConcepts: string[];
+  matchedTerms: string[];
 }
 
 export interface PaperPosition {

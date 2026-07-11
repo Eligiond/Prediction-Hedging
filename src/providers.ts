@@ -31,7 +31,7 @@ async function getJson(url: URL): Promise<unknown> {
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: { "user-agent": "prediction-hedging-mcp/0.1" },
+      headers: { "user-agent": "riskoff-mcp/0.1" },
     });
     if (!response.ok) throw new Error(`${url.host} returned HTTP ${response.status}`);
     return await response.json();
@@ -41,11 +41,19 @@ async function getJson(url: URL): Promise<unknown> {
 }
 
 export async function fetchKalshiMarkets(limit = 100): Promise<Market[]> {
-  const url = new URL(`${KALSHI_BASE}/markets`);
-  url.searchParams.set("status", "open");
-  url.searchParams.set("limit", String(Math.min(limit, 1000)));
-  const payload = (await getJson(url)) as { markets?: Record<string, unknown>[] };
-  return (payload.markets ?? []).map((market) => {
+  const records: Record<string, unknown>[] = [];
+  let cursor = "";
+  do {
+    const url = new URL(`${KALSHI_BASE}/markets`);
+    url.searchParams.set("status", "open");
+    url.searchParams.set("limit", String(Math.min(limit - records.length, 1000)));
+    if (cursor) url.searchParams.set("cursor", cursor);
+    const payload = (await getJson(url)) as { markets?: Record<string, unknown>[]; cursor?: string };
+    records.push(...(payload.markets ?? []));
+    cursor = payload.cursor ?? "";
+  } while (cursor && records.length < limit);
+
+  return records.slice(0, limit).map((market) => {
     const ticker = String(market.ticker ?? "");
     const yesPrice = nullablePrice(
       market.yes_ask_dollars ?? market.last_price_dollars ?? market.yes_bid_dollars,
@@ -85,28 +93,52 @@ export async function fetchPolymarketMarkets(limit = 100): Promise<Market[]> {
   url.searchParams.set("order", "volume24hr");
   url.searchParams.set("ascending", "false");
   const payload = (await getJson(url)) as Record<string, unknown>[];
-  return payload.map((market) => {
-    const prices = parseJsonArray(market.outcomePrices).map(Number);
-    const id = String(market.id ?? market.conditionId ?? "");
-    const slug = String(market.slug ?? id);
-    return {
-      id,
-      platform: "polymarket",
-      title: String(market.question ?? slug),
-      description: String(market.description ?? ""),
-      yesPrice: nullablePrice(prices[0] ?? market.bestAsk ?? market.lastTradePrice),
-      noPrice: nullablePrice(prices[1]),
-      volume: number(market.volumeNum ?? market.volume),
-      liquidity: number(market.liquidityNum ?? market.liquidity),
-      closesAt: market.endDate ? String(market.endDate) : null,
-      url: `https://polymarket.com/event/${encodeURIComponent(slug)}`,
-      tradable: market.active === true && market.closed !== true && market.acceptingOrders !== false,
-      tokenIds: parseJsonArray(market.clobTokenIds),
-      bestAsk: nullablePrice(market.bestAsk),
-      settlementRules: String(market.description ?? ""),
-      fetchedAt: new Date().toISOString(),
-    };
+  return payload.map((market) => normalizePolymarket(market));
+}
+
+async function searchPolymarketMarkets(query: string, limit: number): Promise<Market[]> {
+  const found: Market[] = [];
+  const lower = query.toLowerCase();
+  const anchors = ["china", "indonesia", "fishing", "fisherman", "maritime", "conflict", "nuclear", "uranium", "oil", "crypto", "bitcoin", "rates", "inflation", "climate"]
+    .filter((term) => lower.includes(term) || (term === "china" && lower.includes("chinese")));
+  const focused = [...new Set(anchors.map((term) => term === "fisherman" ? "fishing" : term))].join(" ");
+  const variants = [...new Set([focused, query.slice(0, 500)].filter((value) => value.length >= 2))].slice(0, 2);
+
+  for (const variant of variants) {
+    const url = new URL(`${POLYMARKET_BASE}/public-search`);
+    url.searchParams.set("q", variant);
+    url.searchParams.set("limit_per_type", String(Math.min(limit, 50)));
+    url.searchParams.set("keep_closed_markets", "0");
+    url.searchParams.set("events_status", "active");
+    const payload = (await getJson(url)) as { events?: Record<string, unknown>[] };
+    for (const event of payload.events ?? []) {
+      const eventTitle = String(event.title ?? "");
+      const eventDescription = String(event.description ?? "");
+      const eventSlug = String(event.slug ?? "");
+      const markets = Array.isArray(event.markets) ? event.markets as Record<string, unknown>[] : [];
+      for (const market of markets) {
+        if (market.closed === true || market.active === false) continue;
+        found.push(normalizePolymarket(market, { eventTitle, eventDescription, eventSlug }));
+      }
+    }
+  }
+  return [...new Map(found.map((market) => [market.id, market])).values()].slice(0, limit);
+}
+
+export async function searchMarkets(query: string, platforms: Platform[], limitPerPlatform = 500) {
+  const jobs = platforms.map(async (platform) => {
+    try {
+      const markets = platform === "kalshi"
+        ? await fetchKalshiMarkets(limitPerPlatform)
+        : await searchPolymarketMarkets(query, limitPerPlatform);
+      return { platform, markets };
+    } catch (error) {
+      return { platform, markets: [], error: error instanceof Error ? error.message : String(error) };
+    }
   });
+  const results = await Promise.all(jobs);
+  const errors = results.flatMap((result) => result.error ? [`${result.platform}: ${result.error}`] : []);
+  return { markets: results.flatMap((result) => result.markets), errors };
 }
 
 export async function fetchMarkets(platforms: Platform[], limitPerPlatform = 100) {
@@ -157,12 +189,20 @@ export async function findMarket(platform: Platform, marketId: string): Promise<
 }
 
 async function fetchPolymarketByRecord(market: Record<string, unknown>): Promise<Market> {
+  return normalizePolymarket(market);
+}
+
+function normalizePolymarket(
+  market: Record<string, unknown>,
+  event: { eventTitle?: string; eventDescription?: string; eventSlug?: string } = {},
+): Market {
   const prices = parseJsonArray(market.outcomePrices).map(Number);
   const id = String(market.id ?? market.conditionId ?? "");
-  const slug = String(market.slug ?? id);
+  const slug = event.eventSlug || String(market.slug ?? id);
   return {
     id, platform: "polymarket", title: String(market.question ?? slug),
-    description: String(market.description ?? ""), yesPrice: nullablePrice(prices[0]),
+    description: [event.eventTitle, event.eventDescription, market.description].filter(Boolean).join(" "),
+    yesPrice: nullablePrice(prices[0] ?? market.bestAsk ?? market.lastTradePrice),
     noPrice: nullablePrice(prices[1]), volume: number(market.volumeNum ?? market.volume),
     liquidity: number(market.liquidityNum ?? market.liquidity),
     closesAt: market.endDate ? String(market.endDate) : null,

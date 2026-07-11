@@ -1,6 +1,6 @@
-# Counterweight: Prediction Hedging MCP
+# Riskoff MCP
 
-Counterweight is a read-only MCP server that turns a business or financial exposure into an explainable contingency basket of live prediction-market contracts. It helps an AI client assess whether a contract may pay in a scenario where the user loses money; it does not execute trades or promise insurance.
+Riskoff is a read-only MCP server that turns a business or financial exposure into an explainable contingency basket of live prediction-market contracts. It helps an AI client assess whether a contract may pay in a scenario where the user loses money; it does not execute trades or promise insurance.
 
 Any MCP-capable product can use it to:
 
@@ -28,7 +28,7 @@ No code path places real-money orders. This is a research and hackathon prototyp
 
 ## One-click local launch
 
-On macOS, double-click **`Start Prediction Hedging.command`** in Finder. The
+On macOS, double-click **`Start Riskoff.command`** in Finder. The
 launcher installs the Node dependencies, creates an isolated `.venv`, attempts
 to install the bundled MemPalace source, builds the MCP, starts it at
 `http://127.0.0.1:3000/mcp`, and opens a local status page. The first launch is
@@ -44,6 +44,22 @@ npm run local
 
 Keep the launcher terminal open while using the MCP. Press Control-C to stop it.
 
+### Connect to Claude
+
+Claude's custom connector form cannot use `http://127.0.0.1` because connector
+requests originate from Anthropic's cloud and require a public HTTPS endpoint.
+On macOS, double-click **`Connect Riskoff to Claude.command`** instead. It starts the local
+MCP plus a temporary Cloudflare Quick Tunnel, copies the generated HTTPS MCP URL
+to your clipboard, and opens Claude's connector settings. Paste that URL into
+**Settings > Connectors > Add custom connector** and leave both OAuth fields
+blank.
+
+The generated `trycloudflare.com` address is temporary and changes when the
+launcher restarts. This is suitable for local development and paper trading,
+not a production deployment. Anyone who obtains the temporary URL can reach the
+connector while the launcher is running, so do not put sensitive memories into
+this development tunnel.
+
 ## Architecture
 
 ```text
@@ -51,7 +67,7 @@ MCP client / website backend
           |
    stdio or Streamable HTTP
           |
-  Prediction Hedging MCP
+  Riskoff MCP
    |        |         |
 Kalshi  Polymarket  User context
  REST    Gamma API  Vendored MemPalace + local profile
@@ -83,11 +99,11 @@ Build first, then configure an MCP host to run:
 ```json
 {
   "mcpServers": {
-    "prediction-hedging": {
+    "riskoff": {
       "command": "node",
-      "args": ["/absolute/path/to/Prediction-Hedging/dist/src/index.js"],
+      "args": ["/absolute/path/to/Riskoff/dist/src/index.js"],
       "env": {
-        "DATA_DIR": "/absolute/path/to/Prediction-Hedging/data"
+        "DATA_DIR": "/absolute/path/to/Riskoff/data"
       }
     }
   }
@@ -146,7 +162,7 @@ For a truly direct binary event match only, sizing may use the illustrative esti
 
 ## Semantic search
 
-With `OPENAI_API_KEY`, search uses `text-embedding-3-small` by default. Without it, the service uses a deterministic local ranker with finance-domain concept expansion. Provider failures are returned alongside successful results so one exchange being unavailable does not erase the other exchange's markets.
+With `OPENAI_API_KEY`, search uses `text-embedding-3-small` by default. Without it, the service uses a deterministic local ranker with finance-domain concept expansion. Polymarket retrieval uses its query-aware public search endpoint, while Kalshi markets are scanned across paginated active results. A lexical relevance gate applies in both modes: unrelated high-liquidity contracts are rejected, and `recommend_hedges` returns `no_defensible_market_hedge_found` instead of inventing a trade when nothing qualifies. Indirect candidates include an explicit basis-risk warning. Provider failures are returned alongside successful results so one exchange being unavailable does not erase the other exchange's markets.
 
 ## MemPalace
 

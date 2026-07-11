@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 test("paper trades never require exchange credentials", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "prediction-hedging-"));
+  const directory = await mkdtemp(join(tmpdir(), "riskoff-"));
   process.env.DATA_DIR = directory;
   const { paperTrade } = await import(`../src/paper.js?test=${Date.now()}`);
   const result = await paperTrade({

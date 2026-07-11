@@ -60,8 +60,8 @@ def main() -> int:
                 wing=wing,
                 room="investment_context",
                 content=args.text,
-                source_file=f"prediction-hedging/{wing}",
-                added_by="prediction-hedging-mcp",
+                source_file=f"riskoff/{wing}",
+                added_by="riskoff-mcp",
             )
         else:
             result = {

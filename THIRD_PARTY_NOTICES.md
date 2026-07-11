@@ -11,5 +11,5 @@ MemPalace is copyright 2026 MemPalace Contributors and distributed under the
 MIT License. Its original `LICENSE`, documentation, source, tests, and project
 metadata are retained inside the vendored directory.
 
-No claim is made that Prediction Hedging is endorsed by the MemPalace project
+No claim is made that Riskoff is endorsed by the MemPalace project
 or its contributors.

@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Project overview
-Prediction-Hedging is currently a very early-stage hackathon project. Based on the existing README, the intended product is a prediction and hedging market platform for individuals that ingests portfolio data and suggests safer hedging strategies around calls.
+Riskoff is an early-stage hackathon project that provides an MCP for personalized prediction-market search, contextual hedge research, and paper trading across Kalshi and Polymarket.
 
 ## Repository status
 The repository is minimally initialized at the moment.
