@@ -28,7 +28,7 @@ No code path places real-money orders. This is a research and hackathon prototyp
 
 ## Install the macOS app
 
-Download [Riskoff.dmg](https://10ziaimfkeiidwza.public.blob.vercel-storage.com/downloads/Riskoff-0.2.0-arm64.dmg), open it, and drag Riskoff into Applications. Opening
+Download [Riskoff.dmg](https://10ziaimfkeiidwza.public.blob.vercel-storage.com/downloads/Riskoff-0.2.1-arm64.dmg), open it, and drag Riskoff into Applications. Opening
 Riskoff starts both the local dashboard and the MCP server. Closing the window
 on macOS leaves the app and server running; choose **Riskoff > Quit Riskoff** to
 stop both.

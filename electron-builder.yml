@@ -1,5 +1,6 @@
 appId: com.riskoff.desktop
 productName: Riskoff
+forceCodeSigning: true
 asar: true
 files:
   - desktop/main.cjs
