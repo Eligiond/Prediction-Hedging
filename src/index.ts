@@ -7,6 +7,7 @@ import { createServer } from "./server.js";
 import { getDashboard } from "./dashboard.js";
 import { getAlerts, runProactiveScans, scanAndStoreAlerts } from "./intelligence.js";
 import { ClaudeConnection } from "./claudeConnection.js";
+import { normalizeQualifiedToolCall } from "./mcpCompat.js";
 
 async function startStdio() {
   const server = createServer();
@@ -58,6 +59,8 @@ async function startHttp() {
     response.json({ status: "idle" });
   });
   app.post("/mcp", async (request, response) => {
+    const body = normalizeQualifiedToolCall(request.body);
+    request.body = body;
     const server = createServer();
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
@@ -65,7 +68,7 @@ async function startHttp() {
     });
     response.on("close", () => { void transport.close(); void server.close(); });
     await server.connect(transport);
-    await transport.handleRequest(request, response, request.body);
+    await transport.handleRequest(request, response, body);
   });
   app.get("/mcp", (_request, response) => response.status(405).json({ error: "Stateless MCP accepts POST only" }));
   app.delete("/mcp", (_request, response) => response.status(405).json({ error: "Stateless MCP has no sessions" }));
