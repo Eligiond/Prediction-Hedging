@@ -3,7 +3,28 @@ const money = (value) => new Intl.NumberFormat("en-US", { style: "currency", cur
 const pct = (value) => `${value >= 0 ? "+" : ""}${Number(value || 0).toFixed(2)}%`;
 let dashboard;
 
-fetch("/api/config").then((response) => response.json()).then((config) => { $("#mcp-endpoint").value = config.mcpEndpoint; }).catch(() => {});
+fetch("/api/config").then((response) => response.json()).then((config) => { $("#local-mcp-endpoint").value = config.localMcpEndpoint; }).catch(() => {});
+
+async function startClaudeConnection() {
+  const state = $("#claude-connection-state");
+  const field = $("#claude-mcp-endpoint");
+  const copy = $("#copy-claude-endpoint");
+  const retry = $("#retry-claude-connection");
+  state.textContent = "Preparing link"; state.className = "connection-state is-starting";
+  field.value = "Preparing secure HTTPS link…"; copy.disabled = true; retry.hidden = true;
+  try {
+    const response = await fetch("/api/connections/claude/start", { method: "POST" });
+    const connection = await response.json();
+    if (!response.ok || connection.status !== "ready" || !connection.url) throw new Error(connection.error || "Could not create the HTTPS link");
+    field.value = connection.url; copy.disabled = false;
+    state.textContent = "HTTPS ready"; state.className = "connection-state is-ready";
+    $("#claude-connection-help").textContent = "Ready for Claude. Leave OAuth Client ID and Client Secret blank.";
+  } catch (error) {
+    field.value = "HTTPS connection unavailable";
+    state.textContent = "Needs attention"; state.className = "connection-state is-error";
+    $("#claude-connection-help").textContent = error.message; retry.hidden = false;
+  }
+}
 
 document.querySelectorAll(".nav-item").forEach((button) => button.addEventListener("click", () => {
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item === button));
@@ -44,5 +65,6 @@ function showPosition(position){$("#detail-content").innerHTML=`<h2>${escapeHtml
 async function loadAlerts(){const r=await fetch(`/api/alerts?user_id=${encodeURIComponent($("#user-id").value)}`);renderAlerts((await r.json()).alerts||[])}
 function renderAlerts(alerts){const host=$("#alerts");host.innerHTML=alerts.length?"":'<div class="empty">No political-risk alerts yet. Run a search for an exposure you want Riskoff to monitor.</div>';alerts.forEach(a=>{const el=document.createElement("article");el.className="alert";el.innerHTML=`<div class="alert-meta"><span>${escapeHtml(a.source)}</span><span class="${a.riskLevel==="elevated"?"risk-elevated":""}">${a.riskLevel}</span></div><h3><a href="${a.url}" target="_blank" rel="noreferrer">${escapeHtml(a.title)}</a></h3><p>${escapeHtml(a.explanation)}</p>`;host.append(el)})}
 $("#scan-form").addEventListener("submit",async(e)=>{e.preventDefault();$("#scan-status").textContent="Searching current reporting...";const r=await fetch("/api/alerts/scan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({user_id:$("#user-id").value,query:$("#scan-query").value})});const d=await r.json();$("#scan-status").textContent=r.ok?`Found ${d.newAlerts} relevant reports. Sources are linked below.`:d.error; if(r.ok)renderAlerts(d.alerts)});
-$("#refresh").addEventListener("click",()=>loadDashboard().catch(showError));$("#user-id").addEventListener("change",()=>loadDashboard().catch(showError));$("#close-dialog").addEventListener("click",()=>$("#detail-dialog").close());$("#copy-endpoint").addEventListener("click",async()=>{await navigator.clipboard.writeText($("#mcp-endpoint").value);$("#copy-endpoint").textContent="Copied";setTimeout(()=>$("#copy-endpoint").textContent="Copy",1200)});window.addEventListener("resize",()=>dashboard&&drawChart());
-function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[c])}function showError(error){$("#loading").innerHTML=`<div class="empty">${escapeHtml(error.message)}</div>`}loadDashboard().catch(showError);
+async function copyField(fieldSelector, button) { await navigator.clipboard.writeText($(fieldSelector).value); button.textContent="Copied"; setTimeout(()=>button.textContent="Copy",1200); }
+$("#refresh").addEventListener("click",()=>loadDashboard().catch(showError));$("#user-id").addEventListener("change",()=>loadDashboard().catch(showError));$("#close-dialog").addEventListener("click",()=>$("#detail-dialog").close());$("#copy-claude-endpoint").addEventListener("click",(event)=>copyField("#claude-mcp-endpoint",event.currentTarget));$("#copy-local-endpoint").addEventListener("click",(event)=>copyField("#local-mcp-endpoint",event.currentTarget));$("#retry-claude-connection").addEventListener("click",startClaudeConnection);window.addEventListener("resize",()=>dashboard&&drawChart());
+function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[c])}function showError(error){$("#loading").innerHTML=`<div class="empty">${escapeHtml(error.message)}</div>`}loadDashboard().catch(showError);startClaudeConnection();

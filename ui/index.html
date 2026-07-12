@@ -59,7 +59,16 @@
     </section>
 
     <section id="connections" class="view">
-      <div class="connection-panel"><h2>Connect your AI</h2><p>Keep Riskoff open. The dashboard and MCP server run together on this Mac.</p><label>MCP endpoint<div class="copy-field"><input id="mcp-endpoint" readonly value="http://127.0.0.1:3033/mcp"><button id="copy-endpoint" type="button">Copy</button></div></label><div class="instructions"><strong>Local setup</strong><ol><li>Open Riskoff from Applications.</li><li>Copy the endpoint above.</li><li>Add it as an HTTP MCP server in your AI client.</li><li>Leave Riskoff running while you use its tools.</li></ol></div><p class="privacy">Profiles, paper trades, performance snapshots, and alerts stay in Riskoff's local application data folder.</p></div>
+      <div class="connection-panel">
+        <div class="connection-heading"><div><span class="eyebrow">Claude</span><h2>Secure HTTPS connection</h2></div><span id="claude-connection-state" class="connection-state is-starting">Preparing link</span></div>
+        <p>Riskoff creates a private HTTPS route that Claude can reach while this app is running. The dashboard and local data APIs are never exposed.</p>
+        <label>Claude MCP URL<div class="copy-field"><input id="claude-mcp-endpoint" readonly value="Preparing secure HTTPS link…" aria-describedby="claude-connection-help"><button id="copy-claude-endpoint" type="button" disabled>Copy</button></div></label>
+        <p id="claude-connection-help" class="connection-help" role="status">Leave OAuth Client ID and Client Secret blank.</p>
+        <div class="connection-actions"><button id="retry-claude-connection" class="secondary" type="button" hidden>Try again</button><a class="button-link" href="https://claude.ai/settings/connectors" target="_blank" rel="noreferrer">Open Claude settings</a></div>
+        <div class="instructions"><strong>Add Riskoff to Claude</strong><ol><li>Wait for the HTTPS link, then copy it.</li><li>Open Claude settings and add a custom connector.</li><li>Paste the HTTPS link. Leave both OAuth fields blank.</li><li>Keep Riskoff running while the connector is in use.</li></ol></div>
+        <details class="local-connection"><summary>Connect a local MCP client</summary><p>Codex and other clients running on this Mac can use the loopback address directly.</p><label>Local MCP URL<div class="copy-field"><input id="local-mcp-endpoint" readonly value="http://127.0.0.1:3033/mcp"><button id="copy-local-endpoint" type="button">Copy</button></div></label></details>
+        <p class="privacy">The HTTPS address contains a private access key and changes whenever Riskoff restarts. Do not share it.</p>
+      </div>
     </section>
   </main>
 

@@ -6,6 +6,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createServer } from "./server.js";
 import { getDashboard } from "./dashboard.js";
 import { getAlerts, runProactiveScans, scanAndStoreAlerts } from "./intelligence.js";
+import { ClaudeConnection } from "./claudeConnection.js";
 
 async function startStdio() {
   const server = createServer();
@@ -17,6 +18,8 @@ async function startHttp() {
   app.use(express.json({ limit: "1mb" }));
   const origins = new Set((process.env.ALLOWED_ORIGINS ?? "").split(",").map((item) => item.trim()).filter(Boolean));
   const token = process.env.MCP_API_TOKEN;
+  const port = Number(process.env.PORT ?? 3000);
+  const claudeConnection = new ClaudeConnection(port);
 
   app.use((request, response, next) => {
     const origin = request.headers.origin;
@@ -44,7 +47,16 @@ async function startHttp() {
     try { response.json(await scanAndStoreAlerts(String(request.body.user_id ?? "local-user"), String(request.body.query ?? ""))); }
     catch (error) { response.status(500).json({ error: error instanceof Error ? error.message : String(error) }); }
   });
-  app.get("/api/config", (_request, response) => response.json({ mcpEndpoint: `http://127.0.0.1:${process.env.PORT ?? 3000}/mcp`, mode: "paper-only", proactiveIntervalMinutes: Number(process.env.MONITOR_INTERVAL_MINUTES ?? 15) }));
+  app.get("/api/config", (_request, response) => response.json({ localMcpEndpoint: `http://127.0.0.1:${port}/mcp`, mode: "paper-only", proactiveIntervalMinutes: Number(process.env.MONITOR_INTERVAL_MINUTES ?? 15) }));
+  app.get("/api/connections/claude", (_request, response) => response.json(claudeConnection.getState()));
+  app.post("/api/connections/claude/start", async (_request, response) => {
+    const state = await claudeConnection.start();
+    response.status(state.status === "ready" ? 200 : 503).json(state);
+  });
+  app.delete("/api/connections/claude", async (_request, response) => {
+    await claudeConnection.stop();
+    response.json({ status: "idle" });
+  });
   app.post("/mcp", async (request, response) => {
     const server = createServer();
     const transport = new StreamableHTTPServerTransport({
@@ -58,13 +70,19 @@ async function startHttp() {
   app.get("/mcp", (_request, response) => response.status(405).json({ error: "Stateless MCP accepts POST only" }));
   app.delete("/mcp", (_request, response) => response.status(405).json({ error: "Stateless MCP has no sessions" }));
 
-  const port = Number(process.env.PORT ?? 3000);
   const host = process.env.HOST ?? "127.0.0.1";
   const uiDir = resolve(process.env.RISKOFF_UI_DIR ?? "ui");
   if (existsSync(uiDir)) app.use(express.static(uiDir));
   const monitorMinutes = Math.max(5, Number(process.env.MONITOR_INTERVAL_MINUTES ?? 15));
   const monitor = setInterval(() => { void runProactiveScans(); }, monitorMinutes * 60_000);
   monitor.unref();
+  const shutdown = () => {
+    const forcedExit = setTimeout(() => process.exit(0), 1_500);
+    forcedExit.unref();
+    void claudeConnection.stop().finally(() => process.exit(0));
+  };
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
   void runProactiveScans();
   app.listen(port, host, () => console.error(`Riskoff MCP and dashboard listening at http://${host}:${port}`));
 }
