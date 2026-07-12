@@ -58,6 +58,23 @@ For development:
 npm run dev
 ```
 
+### macOS app
+
+Download [Riskoff 0.2.4](https://10ziaimfkeiidwza.public.blob.vercel-storage.com/downloads/Riskoff-0.2.4-arm64.dmg), drag it to Applications, and open it. The dashboard and MCP server run together.
+
+## Paper execution modes
+
+Riskoff never submits production or real-money orders.
+
+| Platform | Paper execution | Where it appears |
+| --- | --- | --- |
+| Kalshi | Official Kalshi Demo API using mock funds | Riskoff and the connected account at `demo.kalshi.co` |
+| Polymarket | Local Riskoff simulation marked to live public market data | Riskoff only |
+
+To connect Kalshi Demo, create a separate demo account and API key at [demo.kalshi.co](https://demo.kalshi.co/). In Riskoff, open **Connections**, enter the Demo API key ID and RSA private key, and click **Connect Kalshi Demo**. Riskoff verifies the credentials against the official Demo balance endpoint before saving them locally with owner-only file permissions. Production Kalshi credentials are not accepted because all requests use the Demo API host.
+
+Polymarket has no paper environment in its documented CLOB API. Riskoff therefore keeps Polymarket positions local and labels them **Local simulation**. Polymarket wallet keys and production order credentials are not accepted or stored.
+
 ## Examples
 
 Example 1: Individual trader

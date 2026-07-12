@@ -30,10 +30,20 @@ export async function paperTrade(args: {
   if (!market.tradable) throw new Error("Market is not currently tradable");
   if (price === null || price <= 0 || price >= 1) throw new Error("No valid market price is available");
   if (!Number.isFinite(dollars) || dollars <= 0) throw new Error("dollars must be positive");
-  const ledger = await getLedger(userId);
   const shares = dollars / price;
+  return recordPaperFill({ userId, market, outcome, side, dollars, shares, price, notional: dollars, executionMode: "local-simulation" });
+}
+
+export async function recordPaperFill(args: {
+  userId: string; market: Market; outcome: Outcome; side: "buy" | "sell"; shares: number; price: number;
+  notional: number; dollars?: number; executionMode: "local-simulation" | "kalshi-demo"; externalOrderId?: string;
+}) {
+  const { userId, market, outcome, side, shares, price, notional, executionMode, externalOrderId } = args;
+  const dollars = args.dollars ?? notional;
+  const ledger = await getLedger(userId);
   const existing = ledger.positions.find((position) =>
-    position.marketId === market.id && position.platform === market.platform && position.outcome === outcome,
+    position.marketId === market.id && position.platform === market.platform && position.outcome === outcome
+      && (position.executionMode ?? "local-simulation") === executionMode,
   );
   if (side === "buy") {
     if (ledger.cash < dollars) throw new Error(`Insufficient paper cash: $${ledger.cash.toFixed(2)} available`);
@@ -44,7 +54,7 @@ export async function paperTrade(args: {
       existing.cost += dollars;
       existing.lastPrice = price;
     } else {
-      ledger.positions.push({ marketId: market.id, platform: market.platform, title: market.title, outcome, shares, averagePrice: price, cost: dollars, lastPrice: price });
+      ledger.positions.push({ marketId: market.id, platform: market.platform, title: market.title, outcome, shares, averagePrice: price, cost: dollars, lastPrice: price, executionMode });
     }
   } else {
     if (!existing || existing.shares < shares) throw new Error("Insufficient paper shares to sell");
@@ -54,8 +64,8 @@ export async function paperTrade(args: {
     ledger.cash += dollars;
     if (existing.shares < 0.000001) ledger.positions = ledger.positions.filter((position) => position !== existing);
   }
-  const trade = { id: randomUUID(), timestamp: new Date().toISOString(), marketId: market.id, platform: market.platform as Platform, title: market.title, outcome, side, shares, price, notional: dollars };
+  const trade = { id: randomUUID(), timestamp: new Date().toISOString(), marketId: market.id, platform: market.platform as Platform, title: market.title, outcome, side, shares, price, notional, executionMode, externalOrderId };
   ledger.trades.unshift(trade);
   await saveLedger(ledger);
-  return { trade, ledger, notice: "Paper trade only. No real order was sent to Kalshi or Polymarket." };
+  return { trade, ledger, notice: executionMode === "kalshi-demo" ? "Kalshi Demo exchange order with mock funds." : "Local paper simulation only. No exchange order was sent." };
 }

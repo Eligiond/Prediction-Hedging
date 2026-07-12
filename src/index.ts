@@ -8,6 +8,7 @@ import { getDashboard } from "./dashboard.js";
 import { getAlerts, runProactiveScans, scanAndStoreAlerts } from "./intelligence.js";
 import { ClaudeConnection } from "./claudeConnection.js";
 import { normalizeQualifiedToolCall } from "./mcpCompat.js";
+import { configureKalshiDemo, disconnectKalshiDemo, getKalshiDemoStatus } from "./kalshiDemo.js";
 
 async function startStdio() {
   const server = createServer();
@@ -49,6 +50,18 @@ async function startHttp() {
     catch (error) { response.status(500).json({ error: error instanceof Error ? error.message : String(error) }); }
   });
   app.get("/api/config", (_request, response) => response.json({ localMcpEndpoint: `http://127.0.0.1:${port}/mcp`, mode: "paper-only", proactiveIntervalMinutes: Number(process.env.MONITOR_INTERVAL_MINUTES ?? 15) }));
+  app.get("/api/settings/kalshi-demo", async (_request, response) => response.json(await getKalshiDemoStatus()));
+  app.post("/api/settings/kalshi-demo", async (request, response) => {
+    try {
+      response.json(await configureKalshiDemo({ apiKeyId: String(request.body.apiKeyId ?? ""), privateKey: String(request.body.privateKey ?? "") }));
+    } catch (error) {
+      response.status(400).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+  app.delete("/api/settings/kalshi-demo", async (_request, response) => {
+    await disconnectKalshiDemo();
+    response.json({ configured: false, environment: "kalshi-demo" });
+  });
   app.get("/api/connections/claude", (_request, response) => response.json(claudeConnection.getState()));
   app.post("/api/connections/claude/start", async (_request, response) => {
     const state = await claudeConnection.start();

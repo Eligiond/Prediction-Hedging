@@ -37,6 +37,7 @@ export interface PaperPosition {
   averagePrice: number;
   cost: number;
   lastPrice: number;
+  executionMode?: "local-simulation" | "kalshi-demo";
 }
 
 export interface PaperLedger {
@@ -58,6 +59,8 @@ export interface PaperTrade {
   shares: number;
   price: number;
   notional: number;
+  executionMode?: "local-simulation" | "kalshi-demo";
+  externalOrderId?: string;
 }
 
 export interface UserProfile {

@@ -15,6 +15,7 @@ test("paper trades never require exchange credentials", async () => {
   });
   assert.equal(result.ledger.cash, 9960);
   assert.equal(result.ledger.positions[0]?.shares, 100);
-  assert.match(result.notice, /Paper trade only/);
+  assert.match(result.notice, /Local paper simulation/);
+  assert.equal(result.trade.executionMode, "local-simulation");
   await rm(directory, { recursive: true, force: true });
 });

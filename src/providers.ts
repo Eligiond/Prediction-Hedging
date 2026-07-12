@@ -189,7 +189,19 @@ export async function findMarket(platform: Platform, marketId: string): Promise<
 }
 
 async function fetchPolymarketByRecord(market: Record<string, unknown>): Promise<Market> {
-  return normalizePolymarket(market);
+  const events = Array.isArray(market.events) ? market.events : [];
+  const event = events[0] && typeof events[0] === "object" ? events[0] as Record<string, unknown> : undefined;
+  return normalizePolymarket(market, event ? {
+    eventTitle: String(event.title ?? ""),
+    eventDescription: String(event.description ?? ""),
+    eventSlug: String(event.slug ?? ""),
+  } : undefined);
+}
+
+export function polymarketEventSlug(market: Record<string, unknown>): string {
+  const events = Array.isArray(market.events) ? market.events : [];
+  const event = events[0] && typeof events[0] === "object" ? events[0] as Record<string, unknown> : undefined;
+  return String(event?.slug ?? market.slug ?? market.id ?? market.conditionId ?? "");
 }
 
 function normalizePolymarket(
@@ -198,7 +210,7 @@ function normalizePolymarket(
 ): Market {
   const prices = parseJsonArray(market.outcomePrices).map(Number);
   const id = String(market.id ?? market.conditionId ?? "");
-  const slug = event.eventSlug || String(market.slug ?? id);
+  const slug = event.eventSlug || polymarketEventSlug(market) || id;
   return {
     id, platform: "polymarket", title: String(market.question ?? slug),
     description: [event.eventTitle, event.eventDescription, market.description].filter(Boolean).join(" "),

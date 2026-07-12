@@ -66,6 +66,18 @@
         <p id="claude-connection-help" class="connection-help" role="status">Leave OAuth Client ID and Client Secret blank.</p>
         <div class="connection-actions"><button id="retry-claude-connection" class="secondary" type="button" hidden>Try again</button><a class="button-link" href="https://claude.ai/settings/connectors" target="_blank" rel="noreferrer">Open Claude settings</a></div>
         <div class="instructions"><strong>Add Riskoff to Claude</strong><ol><li>Wait for the HTTPS link, then copy it.</li><li>Open Claude settings and add a custom connector.</li><li>Paste the HTTPS link. Leave both OAuth fields blank.</li><li>Keep Riskoff running while the connector is in use.</li></ol></div>
+        <section class="exchange-connection" aria-labelledby="kalshi-demo-title">
+          <div class="connection-heading"><div><span class="eyebrow">Mock funds</span><h2 id="kalshi-demo-title">Kalshi Demo exchange</h2></div><span id="kalshi-demo-state" class="connection-state">Not connected</span></div>
+          <p>Connect a separate Kalshi Demo API key to submit exchange-confirmed orders using mock funds. Kalshi production and real-money trading stay disabled.</p>
+          <div id="kalshi-demo-summary" class="demo-summary" hidden></div>
+          <form id="kalshi-demo-form" class="credential-form">
+            <label>Demo API key ID<input id="kalshi-demo-key-id" autocomplete="off" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></label>
+            <label>Demo RSA private key<textarea id="kalshi-demo-private-key" autocomplete="off" spellcheck="false" required rows="5" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></label>
+            <div class="connection-actions"><button type="submit">Connect Kalshi Demo</button><a href="https://demo.kalshi.co/" target="_blank" rel="noreferrer">Create a demo account</a></div>
+          </form>
+          <div id="kalshi-demo-feedback" class="connection-help" role="status"></div>
+          <button id="disconnect-kalshi-demo" class="secondary" type="button" hidden>Disconnect demo account</button>
+        </section>
         <details class="local-connection"><summary>Connect a local MCP client</summary><p>Codex and other clients running on this Mac can use the loopback address directly.</p><label>Local MCP URL<div class="copy-field"><input id="local-mcp-endpoint" readonly value="http://127.0.0.1:3033/mcp"><button id="copy-local-endpoint" type="button">Copy</button></div></label></details>
         <p class="privacy">The HTTPS address contains a private access key and changes whenever Riskoff restarts. Do not share it.</p>
       </div>
