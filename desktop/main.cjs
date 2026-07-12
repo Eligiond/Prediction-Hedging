@@ -46,10 +46,11 @@ async function startServer() {
   const server = app.isPackaged ? path.join(root, "server", "desktop-server.cjs") : path.join(root, "dist", "desktop-server.cjs");
   const ui = path.join(root, "ui");
   const data = path.join(app.getPath("userData"), "data");
+  const cloudflared = app.isPackaged ? path.join(root, "bin", "cloudflared") : path.join(root, ".local", "bin", "cloudflared");
   mkdirSync(data, { recursive: true });
   const executable = app.isPackaged ? process.execPath : process.execPath;
   serverProcess = spawn(executable, [server], {
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", MCP_TRANSPORT: "http", HOST: "127.0.0.1", PORT: String(port), DATA_DIR: data, PROJECT_ROOT: root, RISKOFF_UI_DIR: ui, MEMPALACE_PYTHON: prepareMempalace(), MEMPALACE_PATH: path.join(app.getPath("userData"), "mempalace") },
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", MCP_TRANSPORT: "http", HOST: "127.0.0.1", PORT: String(port), DATA_DIR: data, PROJECT_ROOT: root, RISKOFF_UI_DIR: ui, CLOUDFLARED_PATH: cloudflared, MEMPALACE_PYTHON: prepareMempalace(), MEMPALACE_PATH: path.join(app.getPath("userData"), "mempalace") },
     stdio: "ignore",
   });
   for (let attempt = 0; attempt < 80; attempt += 1) {

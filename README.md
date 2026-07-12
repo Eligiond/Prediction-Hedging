@@ -28,7 +28,7 @@ No code path places real-money orders. This is a research and hackathon prototyp
 
 ## Install the macOS app
 
-Download [Riskoff.dmg](https://10ziaimfkeiidwza.public.blob.vercel-storage.com/downloads/Riskoff-0.2.1-arm64.dmg), open it, and drag Riskoff into Applications. Opening
+Download [Riskoff.dmg](https://10ziaimfkeiidwza.public.blob.vercel-storage.com/downloads/Riskoff-0.2.2-arm64.dmg), open it, and drag Riskoff into Applications. Opening
 Riskoff starts both the local dashboard and the MCP server. Closing the window
 on macOS leaves the app and server running; choose **Riskoff > Quit Riskoff** to
 stop both.
@@ -39,10 +39,16 @@ private Application Support folder when Python 3 is available. The readable
 local profile fallback remains available while that one-time background setup
 finishes. Node.js is not required by the packaged app.
 
-Inside Riskoff, open **Connections** and copy the local MCP endpoint. Add that
-HTTP endpoint to any local MCP-capable client and keep Riskoff open. Claude's
-cloud connector still requires the HTTPS tunnel described below because it
-cannot call a Mac's loopback address.
+Inside Riskoff, open **Connections**. The app automatically creates a private,
+temporary HTTPS MCP address for Claude and shows it as soon as the connection is
+ready. Copy that address into Claude's custom connector form and leave both
+OAuth fields blank. The public route includes a random access key and exposes
+only MCP traffic; the dashboard and its local data APIs remain on the Mac.
+
+Codex and other MCP clients running directly on the same Mac can instead expand
+**Connect a local MCP client** and use the loopback address. Keep Riskoff open
+while either connection is in use. The Claude HTTPS address changes whenever
+Riskoff restarts.
 
 ## Developer launch
 
