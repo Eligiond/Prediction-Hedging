@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { getLedger } from "./paper.js";
 import { findMarket } from "./providers.js";
+import { findKalshiDemoMarket } from "./kalshiDemo.js";
 
 const dataDir = resolve(process.env.DATA_DIR ?? "./data");
 const safe = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80);
@@ -9,7 +10,7 @@ const safe = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 8
 export async function getDashboard(userId: string) {
   const ledger = await getLedger(userId);
   const positions = await Promise.all(ledger.positions.map(async (position) => {
-    const market = await findMarket(position.platform, position.marketId).catch(() => null);
+    const market = await (position.executionMode === "kalshi-demo" ? findKalshiDemoMarket(position.marketId) : findMarket(position.platform, position.marketId)).catch(() => null);
     const lastPrice = position.outcome === "yes" ? market?.yesPrice : market?.noPrice;
     const markedPrice = lastPrice ?? position.lastPrice;
     const currentValue = position.shares * markedPrice;

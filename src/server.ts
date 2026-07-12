@@ -8,6 +8,7 @@ import { getDashboard } from "./dashboard.js";
 import { scanAndStoreAlerts } from "./intelligence.js";
 import { analyzeExposure, buildContingencyBasket, rankRiskOffsets } from "./hedging.js";
 import type { Platform } from "./types.js";
+import { executeKalshiDemoTrade, fetchKalshiDemoMarkets, getKalshiDemoStatus } from "./kalshiDemo.js";
 
 const text = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] });
 const platformsSchema = z.array(z.enum(["kalshi", "polymarket"])).default(["kalshi", "polymarket"]);
@@ -164,7 +165,22 @@ export function createServer() {
     title: "Get paper portfolio",
     description: "Returns paper cash, positions, and recent simulated trades. It never accesses a real brokerage or exchange account.",
     inputSchema: { user_id: z.string().min(1) },
-  }, async ({ user_id }) => text({ ledger: await getLedger(user_id), mode: "paper-only" }));
+  }, async ({ user_id }) => text({ ledger: await getLedger(user_id), kalshiDemo: await getKalshiDemoStatus(), mode: "paper-only" }));
+
+  server.registerTool("get_kalshi_demo_status", {
+    title: "Get Kalshi Demo connection status",
+    description: "Checks the official Kalshi Demo account that uses mock funds. This never connects to Kalshi production.",
+    inputSchema: {},
+  }, async () => text(await getKalshiDemoStatus()));
+
+  server.registerTool("search_kalshi_demo_markets", {
+    title: "Search official Kalshi Demo markets",
+    description: "Searches the markets that can receive mock-funds orders in the official Kalshi Demo environment. Use this before executing a Kalshi paper trade.",
+    inputSchema: { query: z.string().min(2), limit: z.number().int().min(1).max(25).default(10), scan_limit: z.number().int().min(25).max(1000).default(500) },
+  }, async ({ query, limit, scan_limit }) => {
+    const markets = await fetchKalshiDemoMarkets(scan_limit);
+    return text({ query, environment: "kalshi-demo", ...(await rankMarkets(query, markets, limit)) });
+  });
 
   server.registerTool("get_trade_performance", {
     title: "Get marked paper-trade performance",
@@ -180,13 +196,16 @@ export function createServer() {
 
   server.registerTool("execute_paper_trade", {
     title: "Execute paper trade",
-    description: "Simulates a Kalshi or Polymarket trade at the latest displayed price. This tool cannot place real-money orders.",
+    description: "Submits Kalshi orders to the official Demo exchange when configured, or locally simulates Polymarket using live prices. This tool cannot place real-money orders.",
     inputSchema: {
       user_id: z.string().min(1), platform: z.enum(["kalshi", "polymarket"]), market_id: z.string().min(1),
       outcome: z.enum(["yes", "no"]), side: z.enum(["buy", "sell"]), dollars: z.number().positive().max(100000),
       confirm: z.literal(true).describe("Must be true after the user confirms the exact simulated trade."),
     },
   }, async ({ user_id, platform, market_id, outcome, side, dollars }) => {
+    if (platform === "kalshi") {
+      return text(await executeKalshiDemoTrade({ userId: user_id, marketId: market_id, outcome, side, dollars }));
+    }
     const market = await findMarket(platform as Platform, market_id);
     if (!market) throw new Error("Market not found");
     return text(await paperTrade({ userId: user_id, market, outcome, side, dollars }));
